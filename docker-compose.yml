@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  backend:
+    image: ems-backend:1.0
+    container_name: ems-spring-boot
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  frontend:
+    image: ems-frontend:1.0
+    container_name: ems-react-ui
+    ports:
+      - "80:80"
+    restart: unless-stopped
