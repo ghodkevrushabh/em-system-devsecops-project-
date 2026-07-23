@@ -4,6 +4,7 @@ pipeline {
     environment {
         DOCKERHUB_CREDENTIALS = credentials('docker-credentials')
         SONAR_TOKEN          = credentials('sonarqube-token')
+	INFRACOST_API_KEY	= credentials('infracost-api-key')
         REGISTRY             = 'docker.io'
         IMAGE_NAME           = 'vrushabhghodke/em-system-app'
         IMAGE_TAG            = "${BUILD_NUMBER}"
