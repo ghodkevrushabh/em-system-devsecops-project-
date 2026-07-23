@@ -16,10 +16,13 @@ pipeline {
             }
         }
 
-        stage('Static Code Analysis (SonarQube)') {
+	stage('Static Code Analysis (SonarQube)') {
             steps {
                 withSonarQubeEnv('SonarQube') {
-                    sh 'mvn clean verify sonar:sonar'
+                    // Replace 'your-app-folder' with the actual name of your folder
+                    dir('employee-management') {
+                        sh 'mvn clean verify sonar:sonar'
+                    }
                 }
             }
         }
