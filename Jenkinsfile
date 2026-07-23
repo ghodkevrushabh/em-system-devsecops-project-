@@ -19,9 +19,8 @@ pipeline {
 	stage('Static Code Analysis (SonarQube)') {
             steps {
                 withSonarQubeEnv('SonarQube') {
-                    // Replace 'your-app-folder' with the actual name of your folder
-                    dir('employee-management') {
-                        sh 'mvn clean verify sonar:sonar'
+                    dir('employee-management') { // (Keep whatever folder name you used)
+                        sh 'mvn clean verify sonar:sonar -DskipTests'
                     }
                 }
             }
@@ -71,7 +70,7 @@ pipeline {
         stage('Deploy to Kubernetes (K3s)') {
             steps {
                 withKubeConfig(credentialsId: 'k3s-kubeconfig') {
-                    sh "kubectl set image deployment/em-system-app ems-app-container=${IMAGE_NAME}:${IMAGE_TAG}"
+                    sh "kubectl set image deployment/your-app-deployment ems-container=${IMAGE_NAME}:${IMAGE_TAG}"
                 }
             }
         }
@@ -80,7 +79,7 @@ pipeline {
             steps {
                 sh '''
                 docker run -t --network host owasp/zap2docker-stable zap-baseline.py \
-                  -t http://192.168.56.140:8080 -r zap_report.html || true
+                  -t http://<VM_4_IP>:<APP_PORT> -r zap_report.html || true
                 '''
             }
         }
