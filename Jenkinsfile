@@ -27,28 +27,31 @@ pipeline {
             }
         }
 
-        stage('3. Infrastructure Code Scan (Checkov)') {
+	stage('3. Docker Build & Trivy Scan') {
             steps {
-                sh 'checkov -d ./terraform --soft-fail'
+                // Pass explicit path to Dockerfile (-f) and build context
+                sh 'docker build -t vrushabhghodke/em-system-app:latest -f employee-management/Dockerfile employee-management'
+                sh 'trivy image --timeout 15m --severity HIGH,CRITICAL vrushabhghodke/em-system-app:latest'
             }
         }
 
-	stage('4. Cost Estimation (Infracost)') {
-            environment {
-                INFRACOST_API_KEY = credentials('infracost-api-key')
-                CI = 'true'
-            }
+	stage('4. Push Image to Docker Hub') {
             steps {
-                // 1. Download the latest release tarball directly into the pipeline workspace
-                sh 'curl -L "https://github.com/infracost/infracost/releases/latest/download/infracost-linux-amd64.tar.gz" -o infracost.tar.gz'
-                // 2. Extract the binary
-                sh 'tar xzf infracost.tar.gz'
-                // 3. Run the breakdown using the FRESH local binary
-                sh './infracost-linux-amd64 breakdown --path ./terraform --format table'
+                withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCK>
+                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+                    sh 'docker push vrushabhghodke/em-system-app:latest'
+                }
             }
         }
 
-        stage('5. Infrastructure Plan (Terraform)') {
+        stage('5. Infrastructure Code Scan (Checkov)') {
+            steps {
+		// We run Checkov as a temporary Docker container, scanning the terraform folder
+                sh 'docker run --rm -v "${WORKSPACE}/terraform":/tf bridgecrew/checkov -d /tf --soft-fail'
+            }
+        }
+
+	stage('6. Infrastructure Plan (Terraform)') {
             environment {
                 AWS_ACCESS_KEY_ID     = credentials('aws-access-key')
                 AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
@@ -61,13 +64,34 @@ pipeline {
             }
         }
 
-        stage('6. Manual Approval Gate') {
+	stage('7. FinOps Cost Estimation') {
+            environment {
+                INFRACOST_API_KEY = credentials('infracost-api-key')
+            }
+            steps {
+                script {
+                    sh 'curl -L "https://github.com/infracost/infracost/releases/latest/download/infracost-linux-amd64.tar.gz" -o infracost.tar.gz'
+                    sh 'tar xzf infracost.tar.gz'
+                    
+                    // Run Infracost and save the report to a text file
+                    sh './infracost-linux-amd64 breakdown --path ./terraform > infracost_report.txt'
+                    
+                    // Print to logs for debugging
+                    sh 'cat infracost_report.txt'
+                    
+                    // Extract ONLY the line containing the final dollar amount
+                    env.MONTHLY_COST = sh(script: 'grep "Total Monthly Cost" infracost_report.txt || echo "Cost not found"', returnStdout: true).trim()
+                }
+            }
+	}
+
+        stage('8. Manual Approval Gate') {
             steps {
                 input message: 'Review Infracost report and Terraform Plan. Approve infrastructure provisioning?', ok: 'Approve'
             }
         }
 
-        stage('7. Infrastructure Apply (Terraform)') {
+        stage('9. Infrastructure Apply (Terraform- Provision AWS Infra)') {
             environment {
                 AWS_ACCESS_KEY_ID     = credentials('aws-access-key')
                 AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
@@ -80,36 +104,22 @@ pipeline {
         }
 
 
-	stage('8. Docker Build & Trivy Scan') {
-            steps {
-                // Pass explicit path to Dockerfile (-f) and build context
-                sh 'docker build -t vrushabhghodke/em-system-app:latest -f employee-management/Dockerfile employee-management'
-                sh 'trivy image --timeout 15m --severity HIGH,CRITICAL vrushabhghodke/em-system-app:latest'
-            }
-        }
 
-	stage('9. Push Image to Docker Hub') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
-                    sh 'docker push vrushabhghodke/em-system-app:latest'
-                }
-            }
-        }
-
-	stage('10. Deploy to AWS Cloud EC2') {
+	stage('10. Provision AWS Infrastructure') {
             environment {
                 AWS_ACCESS_KEY_ID     = credentials('aws-access-key')
                 AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
             }
             steps {
-                script {
-                    dir('terraform') {
-                        def ec2_ip = sh(script: "terraform output -raw ec2_public_ip", returnStdout: true).trim()
-                        echo "EC2 Instance Public IP: ${ec2_ip}"
-                        echo "Application Cloud Deployment Complete!"
-                        echo "Access your live app at: http://${ec2_ip}:8080"
-                    }
+                dir('terraform') {
+                    sh 'terraform apply -auto-approve tfplan'
+                    
+                    def ec2_ip = sh(script: "terraform output -raw ec2_public_ip", returnStdout: true).trim()
+                    echo "======================================================"
+                    echo "EC2 Instance Provisioned: ${ec2_ip}"
+                    echo "WAIT 3 MINUTES for the server to install Docker..."
+                    echo "Then access your live app at: http://${ec2_ip}:8080"
+                    echo "======================================================"
                 }
             }
         }
