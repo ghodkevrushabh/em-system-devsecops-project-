@@ -98,8 +98,8 @@ pipeline {
                     sh 'docker rm ems-app || true'
 
                     // 2. Run the new image (from Step 7) directly on Jenkins server
-                    sh 'docker run -d --name ems-app -p 8080:8080 vrushabhghodke/em-system-app:20'
-                    echo "Application is live! Access it at http://:8080"
+                    sh 'docker run -d --name ems-app -p 8081:8080 vrushabhghodke/em-system-app:20'
+                    echo "Application is live! Access it at http://:8081"
                 }
             }
         }
