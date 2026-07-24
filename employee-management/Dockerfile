@@ -1,5 +1,5 @@
-# 1. Use a lightweight JDK 17 base image
-FROM openjdk:17-jdk-slim
+# 1. Use the modern, supported Eclipse Temurin Java 17 base image
+FROM eclipse-temurin:17-jre
 
 # 2. Set the working directory inside the container
 WORKDIR /app
