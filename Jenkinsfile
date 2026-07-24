@@ -79,15 +79,15 @@ pipeline {
             }
         }
 
+
 	stage('7. Docker Build & Trivy Scan') {
             steps {
                 dir('employee-management') {
-                    // Builds the image. Version tag must match what we push/run later
                     sh 'docker build -t vrushabhghodke/em-system-app:20 .'
-                    // Scans the image we just built
-                    sh 'trivy image --severity HIGH,CRITICAL vrushabhghodke/em-system-app:20'
+                    // Added --timeout 15m to give Trivy enough time to scan the Java JARs
+                    sh 'trivy image --timeout 15m --severity HIGH,CRITICAL vrushabhghodke/em-system-app:20'
                 }
-            }
+            } 
         }
 
         stage('8. Simplified Local Deploy (Option A)') {
