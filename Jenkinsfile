@@ -11,13 +11,13 @@ pipeline {
     }
 
     stages {
-        stage('Checkout Code') {
+        stage('1. Checkout Code') {
             steps {
                 git branch: 'main', url: 'https://github.com/ghodkevrushabh/em-system-devsecops-project-.git'
             }
         }
 
-	stage('Static Code Analysis (SonarQube)') {
+	stage('2. Static Code Analysis (SonarQube)') {
             steps {
                 withSonarQubeEnv('SonarQube') {
                     dir('employee-management') { // (Keep whatever folder name you used)
@@ -27,13 +27,13 @@ pipeline {
             }
         }
 
-        stage('Infrastructure Code Scan (Checkov)') {
+        stage('3. Infrastructure Code Scan (Checkov)') {
             steps {
                 sh 'checkov -d ./terraform --soft-fail'
             }
         }
 
-	stage('Cost Estimation (Infracost)') {
+	stage('3. Cost Estimation (Infracost)') {
             environment {
                 INFRACOST_API_KEY = credentials('infracost-api-key')
                 CI = 'true'
@@ -41,23 +41,44 @@ pipeline {
             steps {
                 // 1. Download the latest release tarball directly into the pipeline workspace
                 sh 'curl -L "https://github.com/infracost/infracost/releases/latest/download/infracost-linux-amd64.tar.gz" -o infracost.tar.gz'
-                
                 // 2. Extract the binary
                 sh 'tar xzf infracost.tar.gz'
-                
-                // 3. Run the breakdown using the FRESH local binary (notice the ./ before infracost)
+                // 3. Run the breakdown using the FRESH local binary
                 sh './infracost-linux-amd64 breakdown --path ./terraform --format table'
             }
         }
-        stage('Terraform Plan & Apply') {
+
+        stage('4. Infrastructure Plan (Terraform)') {
+            environment {
+                AWS_ACCESS_KEY_ID     = credentials('aws-access-key')
+                AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
+            }
             steps {
-                dir('./terraform') {
+                dir('terraform') {
                     sh 'terraform init'
                     sh 'terraform plan -out=tfplan'
+                }
+            }
+        }
+
+        stage('5. Manual Approval Gate') {
+            steps {
+                input message: 'Review Infracost report and Terraform Plan. Approve infrastructure provisioning?', ok: 'Approve'
+            }
+        }
+
+        stage('6. Infrastructure Apply (Terraform)') {
+            environment {
+                AWS_ACCESS_KEY_ID     = credentials('aws-access-key')
+                AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
+            }
+            steps {
+                dir('terraform') {
                     sh 'terraform apply -auto-approve tfplan'
                 }
             }
         }
+
 
         stage('Docker Build') {
             steps {
