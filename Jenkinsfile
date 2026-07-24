@@ -13,7 +13,7 @@ pipeline {
     stages {
         stage('1. Checkout Code') {
             steps {
-                git branch: 'main', url: 'https://github.com/ghodkevrushabh/em-system-devsecops-project-.git'
+                git branch: 'main', url: 'https://github.com/ghodkevrushabh/em-system-devsecops-project.git'
             }
         }
 
@@ -108,9 +108,9 @@ pipeline {
             }
             steps {
                 dir('terraform') {
-		    // CHANGED: Use auto-approve instead of passing the tfplan file
-                    // This bypasses the Jenkins file-locking bug completely!
-                    sh 'terraform apply -auto-approve'
+		    // RESTORED: Applying the exact locked plan file! Best Practice
+                    sh 'terraform apply tfplan'
+
                     script {
                         def ec2_ip = sh(script: "terraform output -raw ec2_public_ip", returnStdout: true).trim()
                         echo "======================================================"

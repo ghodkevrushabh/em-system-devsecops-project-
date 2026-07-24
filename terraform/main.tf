@@ -1,4 +1,14 @@
 terraform {
+  # NEW: Enterprise Remote Backend
+  backend "s3" {
+    bucket         = "devsecops-tf-state-itiss" # Must match your exact bucket name
+    key            = "ems-app/terraform.tfstate"
+    region         = "eu-north-1"
+    dynamodb_table = "terraform-state-lock"
+    encrypt        = true
+  }
+
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
