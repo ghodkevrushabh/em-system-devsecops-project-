@@ -21,7 +21,7 @@ pipeline {
             steps {
                 withSonarQubeEnv('SonarQube') {
                     dir('employee-management') { // (Keep whatever folder name you used)
-                        sh 'mvn clean verify sonar:sonar -DskipTests'
+                        sh 'JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 mvn clean verify sonar:sonar -DskipTests'
                     }
                 }
             }
