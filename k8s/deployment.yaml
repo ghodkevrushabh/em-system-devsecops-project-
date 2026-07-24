@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ems-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ems-app
+  template:
+    metadata:
+      labels:
+        app: ems-app
+    spec:
+      containers:
+      - name: ems-container
+        image: vrushabhghodke/em-system-app:18
+        ports:
+        - containerPort: 8080
