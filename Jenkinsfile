@@ -79,7 +79,30 @@ pipeline {
             }
         }
 
+	stage('7. Docker Build & Trivy Scan') {
+            steps {
+                dir('employee-management') {
+                    // Builds the image. Version tag must match what we push/run later
+                    sh 'docker build -t vrushabhghodke/em-system-app:20 .'
+                    // Scans the image we just built
+                    sh 'trivy image --severity HIGH,CRITICAL vrushabhghodke/em-system-app:20'
+                }
+            }
+        }
 
+        stage('8. Simplified Local Deploy (Option A)') {
+            steps {
+                script {
+                    // 1. Remove any old version of the app running on port 8080
+                    sh 'docker stop ems-app || true'
+                    sh 'docker rm ems-app || true'
+
+                    // 2. Run the new image (from Step 7) directly on Jenkins server
+                    sh 'docker run -d --name ems-app -p 8080:8080 vrushabhghodke/em-system-app:20'
+                    echo "Application is live! Access it at http://:8080"
+                }
+            }
+        }
         stage('Docker Build') {
             steps {
                 sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
