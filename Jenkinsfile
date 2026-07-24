@@ -29,7 +29,7 @@ pipeline {
 
 	stage('3. Docker Build & Trivy Scan') {
             steps {
-                // Pass explicit path to Dockerfile (-f) and build context
+                // Pass explicit path to Dockerfile (-f) and build context.
                 sh 'docker build -t vrushabhghodke/em-system-app:latest -f employee-management/Dockerfile employee-management'
                 sh 'trivy image --timeout 15m --severity HIGH,CRITICAL vrushabhghodke/em-system-app:latest'
             }
