@@ -8,7 +8,7 @@ terraform {
 }
 
 provider "aws" {
-  region = "us-north-1"
+  region = "eu-north-1"
 }
 
 # Creates a free-tier compatible S3 bucket for your app assets
