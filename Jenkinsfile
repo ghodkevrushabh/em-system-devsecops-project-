@@ -32,15 +32,23 @@ pipeline {
                 sh 'checkov -d ./terraform --soft-fail'
             }
         }
+
 	stage('Cost Estimation (Infracost)') {
+            environment {
+                INFRACOST_API_KEY = credentials('infracost-api-key')
+                CI = 'true'
+            }
             steps {
-                withCredentials([string(credentialsId: 'infracost-api-key', variable: 'INFRACOST_API_KEY')]) {
-                    // Using 'env' forces these variables directly into the process, bypassing Jenkins' shell quirks
-                    sh 'env CI=true INFRACOST_API_KEY=$INFRACOST_API_KEY infracost breakdown --path ./terraform --format table'
-                }
+                // 1. Download the latest release tarball directly into the pipeline workspace
+                sh 'curl -L "https://github.com/infracost/infracost/releases/latest/download/infracost-linux-amd64.tar.gz" -o infracost.tar.gz'
+                
+                // 2. Extract the binary
+                sh 'tar xzf infracost.tar.gz'
+                
+                // 3. Run the breakdown using the FRESH local binary (notice the ./ before infracost)
+                sh './infracost-linux-amd64 breakdown --path ./terraform --format table'
             }
         }
-
         stage('Terraform Plan & Apply') {
             steps {
                 dir('./terraform') {
