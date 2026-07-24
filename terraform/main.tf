@@ -8,26 +8,16 @@ terraform {
 }
 
 provider "aws" {
-  region = "eu-north-1" # Your exact region
+  region = "eu-north-1"
 }
 
-# Dynamically finds the correct Ubuntu AMI for eu-north-1
-data "aws_ami" "ubuntu" {
-  most_recent = true
-  owners      = ["098965243132"]
-
-  filter {
-    name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
-  }
-  filter {
-    name   = "architecture"
-    values = ["x86_64"]
-  }
+# The industry-standard way to get the latest Ubuntu 22.04 AMI dynamically
+data "aws_ssm_parameter" "ubuntu_ami" {
+  name = "/aws/service/canonical/ubuntu/server/22.04/stable/current/amd64/hvm/ebs-gp2/ami-id"
 }
 
 resource "aws_security_group" "ems_sg" {
-  name        = "ems-app-security-group-stockholm" # Renamed to avoid conflicts
+  name        = "ems-app-security-group-stockholm"
   description = "Allow port 8080 and 22"
 
   ingress {
@@ -53,8 +43,9 @@ resource "aws_security_group" "ems_sg" {
 }
 
 resource "aws_instance" "ems_server" {
-  ami                    = data.aws_ami.ubuntu.id
-  instance_type          = "t3.micro" # Mandatory for eu-north-1
+  # Use the value fetched from the SSM Parameter Store
+  ami                    = data.aws_ssm_parameter.ubuntu_ami.value
+  instance_type          = "t3.micro"
   vpc_security_group_ids = [aws_security_group.ems_sg.id]
 
   user_data = <<-EOF
