@@ -113,15 +113,17 @@ pipeline {
             steps {
                 dir('terraform') {
                     sh 'terraform apply -auto-approve tfplan'
-                    
-                    def ec2_ip = sh(script: "terraform output -raw ec2_public_ip", returnStdout: true).trim()
-                    echo "======================================================"
-                    echo "EC2 Instance Provisioned: ${ec2_ip}"
-                    echo "WAIT 3 MINUTES for the server to install Docker..."
-                    echo "Then access your live app at: http://${ec2_ip}:8080"
-                    echo "======================================================"
+                    script {
+                        def ec2_ip = sh(script: "terraform output -raw ec2_public_ip", returnStdout: true).trim()
+                        echo "======================================================"
+                        echo "EC2 Instance Provisioned: ${ec2_ip}"
+                        echo "WAIT 3 MINUTES for the server to install Docker..."
+                        echo "Then access your live app at: http://${ec2_ip}:8080"
+                        echo "======================================================"
+                    }
                 }
             }
         }
+
     }
 }
