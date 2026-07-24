@@ -50,11 +50,19 @@ resource "aws_instance" "ems_server" {
 
   user_data = <<-EOF
               #!/bin/bash
+	      # 1. Force Ubuntu to NEVER prompt for user input during installs
+              export DEBIAN_FRONTEND=noninteractive
               sudo apt-get update -y
-              sudo apt-get install -y docker.io
+              
+              # 2. Use Docker's official bulletproof installation script
+              curl -fsSL https://get.docker.com -o get-docker.sh
+              sudo sh get-docker.sh
+              
+              # 3. Start the Docker service
               sudo systemctl start docker
               sudo systemctl enable docker
-              sudo usermod -aG docker ubuntu
+              
+              # 4. Run the app (Make sure your Docker Hub repo is PUBLIC!)
 
 	      sudo docker run -d --name ems-app -p 8080:8080 vrushabhghodke/em-system-app:latest
               EOF
