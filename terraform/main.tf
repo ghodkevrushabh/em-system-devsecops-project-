@@ -8,13 +8,27 @@ terraform {
 }
 
 provider "aws" {
-  region = "eu-north-1"
+  region = "eu-north-1" # Your exact region
 }
 
-# Firewall rule: Allow web traffic on port 8080 and SSH on port 22
+# Dynamically finds the correct Ubuntu AMI for eu-north-1
+data "aws_ami" "ubuntu" {
+  most_recent = true
+  owners      = ["098965243132"]
+
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
+  }
+  filter {
+    name   = "architecture"
+    values = ["x86_64"]
+  }
+}
+
 resource "aws_security_group" "ems_sg" {
-  name        = "ems-app-security-group"
-  description = "Allow port 8080 for application and 22 for SSH"
+  name        = "ems-app-security-group-stockholm" # Renamed to avoid conflicts
+  description = "Allow port 8080 and 22"
 
   ingress {
     from_port   = 8080
@@ -38,10 +52,9 @@ resource "aws_security_group" "ems_sg" {
   }
 }
 
-# AWS EC2 Server (This gives Infracost a fixed compute cost to calculate!)
 resource "aws_instance" "ems_server" {
-  ami                    = "ami-0c7217cdde317cfec" # Ubuntu 22.04 LTS
-  instance_type          = "t2.micro"              # Infracost will calculate ~$8-10/month
+  ami                    = data.aws_ami.ubuntu.id
+  instance_type          = "t3.micro" # Mandatory for eu-north-1
   vpc_security_group_ids = [aws_security_group.ems_sg.id]
 
   user_data = <<-EOF
