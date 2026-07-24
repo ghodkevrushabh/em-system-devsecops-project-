@@ -55,6 +55,8 @@ resource "aws_instance" "ems_server" {
               sudo systemctl start docker
               sudo systemctl enable docker
               sudo usermod -aG docker ubuntu
+
+	      sudo docker run -d --name ems-app -p 8080:8080 vrushabhghodke/em-system-app:latest
               EOF
 
   tags = {
