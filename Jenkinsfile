@@ -87,27 +87,17 @@ pipeline {
             }
 	}
 
-        stage('8. Manual Approval Gate') {
+	stage('8. FinOps Manual Approval Gate') {
             steps {
-                input message: 'Review Infracost report and Terraform Plan. Approve infrastructure provisioning?', ok: 'Approve'
-            }
-        }
-
-        stage('9. Infrastructure Apply (Terraform- Provision AWS Infra)') {
-            environment {
-                AWS_ACCESS_KEY_ID     = credentials('aws-access-key')
-                AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
-            }
-            steps {
-                dir('terraform') {
-                    sh 'terraform apply -auto-approve tfplan'
+                script {
+                    // This now properly shows the exact dollar amount in the Jenkins UI
+                    input message: "FinOps Review: ${env.MONTHLY_COST}. Approve AWS deployment?", ok: 'Approve & Deploy'
                 }
             }
         }
 
 
-
-	stage('10. Provision AWS Infrastructure') {
+	stage('9. Provision AWS Infrastructure') {
             environment {
                 AWS_ACCESS_KEY_ID     = credentials('aws-access-key')
                 AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
