@@ -59,6 +59,10 @@ pipeline {
             steps {
                 dir('terraform') {
 		    // Clean up any old plan file from previous runs
+	            // INDUSTRY BEST PRACTICE FOR LOCAL PIPELINES:
+                    // Aggressively wipe local state and cache so Terraform doesn't get confused by manual AWS deletions
+                    sh 'rm -rf .terraform terraform.tfstate terraform.tfstate.backup tfplan'
+
                     sh 'rm -f tfplan'
                     sh 'terraform init'
                     sh 'terraform plan -out=tfplan'
