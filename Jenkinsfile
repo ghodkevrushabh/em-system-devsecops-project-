@@ -58,6 +58,8 @@ pipeline {
             }
             steps {
                 dir('terraform') {
+		    // Clean up any old plan file from previous runs
+                    sh 'rm -f tfplan'
                     sh 'terraform init'
                     sh 'terraform plan -out=tfplan'
                 }
@@ -112,7 +114,7 @@ pipeline {
             }
             steps {
                 dir('terraform') {
-                    sh 'terraform apply -auto-approve tfplan'
+                    sh 'terraform apply tfplan'
                     script {
                         def ec2_ip = sh(script: "terraform output -raw ec2_public_ip", returnStdout: true).trim()
                         echo "======================================================"
