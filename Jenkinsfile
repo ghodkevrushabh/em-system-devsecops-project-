@@ -108,7 +108,9 @@ pipeline {
             }
             steps {
                 dir('terraform') {
-                    sh 'terraform apply tfplan'
+		    // CHANGED: Use auto-approve instead of passing the tfplan file
+                    // This bypasses the Jenkins file-locking bug completely!
+                    sh 'terraform apply -auto-approve'
                     script {
                         def ec2_ip = sh(script: "terraform output -raw ec2_public_ip", returnStdout: true).trim()
                         echo "======================================================"
