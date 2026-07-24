@@ -17,7 +17,7 @@ pipeline {
             }
         }
 
-	stage('2. Static Code Analysis (SonarQube)') {
+	stage('2. Build App and Static Code Analysis (SonarQube)') {
             steps {
                 withSonarQubeEnv('SonarQube') {
                     dir('employee-management') { // (Keep whatever folder name you used)
@@ -33,7 +33,7 @@ pipeline {
             }
         }
 
-	stage('3. Cost Estimation (Infracost)') {
+	stage('4. Cost Estimation (Infracost)') {
             environment {
                 INFRACOST_API_KEY = credentials('infracost-api-key')
                 CI = 'true'
@@ -48,7 +48,7 @@ pipeline {
             }
         }
 
-        stage('4. Infrastructure Plan (Terraform)') {
+        stage('5. Infrastructure Plan (Terraform)') {
             environment {
                 AWS_ACCESS_KEY_ID     = credentials('aws-access-key')
                 AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
@@ -61,13 +61,13 @@ pipeline {
             }
         }
 
-        stage('5. Manual Approval Gate') {
+        stage('6. Manual Approval Gate') {
             steps {
                 input message: 'Review Infracost report and Terraform Plan. Approve infrastructure provisioning?', ok: 'Approve'
             }
         }
 
-        stage('6. Infrastructure Apply (Terraform)') {
+        stage('7. Infrastructure Apply (Terraform)') {
             environment {
                 AWS_ACCESS_KEY_ID     = credentials('aws-access-key')
                 AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
@@ -80,69 +80,38 @@ pipeline {
         }
 
 
-	stage('7. Docker Build & Trivy Scan') {
+	stage('8. Docker Build & Trivy Scan') {
             steps {
-                dir('employee-management') {
-                    sh 'docker build -t vrushabhghodke/em-system-app:20 .'
-                    // Added --timeout 15m to give Trivy enough time to scan the Java JARs
-                    sh 'trivy image --timeout 15m --severity HIGH,CRITICAL vrushabhghodke/em-system-app:20'
-                }
-            } 
+                // Pass explicit path to Dockerfile (-f) and build context
+                sh 'docker build -t vrushabhghodke/em-system-app:latest -f employee-management/Dockerfile employee-management'
+                sh 'trivy image --timeout 15m --severity HIGH,CRITICAL vrushabhghodke/em-system-app:latest'
+            }
         }
 
-        stage('8. Simplified Local Deploy (Option A)') {
+	stage('9. Push Image to Docker Hub') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+                    sh 'docker push vrushabhghodke/em-system-app:latest'
+                }
+            }
+        }
+
+	stage('10. Deploy to AWS Cloud EC2') {
+            environment {
+                AWS_ACCESS_KEY_ID     = credentials('aws-access-key')
+                AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
+            }
             steps {
                 script {
-                    // 1. Remove any old version of the app running on port 8080
-                    sh 'docker stop ems-app || true'
-                    sh 'docker rm ems-app || true'
-
-                    // 2. Run the new image (from Step 7) directly on Jenkins server
-                    sh 'docker run -d --name ems-app -p 8081:8080 vrushabhghodke/em-system-app:20'
-                    echo "Application is live! Access it at http://:8081"
+                    dir('terraform') {
+                        def ec2_ip = sh(script: "terraform output -raw ec2_public_ip", returnStdout: true).trim()
+                        echo "EC2 Instance Public IP: ${ec2_ip}"
+                        echo "Application Cloud Deployment Complete!"
+                        echo "Access your live app at: http://${ec2_ip}:8080"
+                    }
                 }
             }
-        }
-        stage('Docker Build') {
-            steps {
-                sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
-            }
-        }
-
-        stage('Vulnerability Scan (Trivy)') {
-            steps {
-                sh "trivy image --exit-code 0 --severity HIGH,CRITICAL ${IMAGE_NAME}:${IMAGE_TAG}"
-            }
-        }
-
-        stage('Push Image to Container Registry') {
-            steps {
-                sh "echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin"
-                sh "docker push ${IMAGE_NAME}:${IMAGE_TAG}"
-            }
-        }
-
-        stage('Deploy to Kubernetes (K3s)') {
-            steps {
-                withKubeConfig(credentialsId: 'k3s-kubeconfig') {
-                    sh "kubectl set image deployment/your-app-deployment ems-container=${IMAGE_NAME}:${IMAGE_TAG}"
-                }
-            }
-        }
-
-        stage('Dynamic Security Testing (OWASP ZAP)') {
-            steps {
-                sh '''
-                docker run -t --network host owasp/zap2docker-stable zap-baseline.py \
-                  -t http://<VM_4_IP>:<APP_PORT> -r zap_report.html || true
-                '''
-            }
-        }
-    }
-
-    post {
-        always {
-            cleanWs()
         }
     }
 }
