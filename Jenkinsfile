@@ -33,9 +33,12 @@ pipeline {
             }
         }
 
-        stage('Cost Estimation (Infracost)') {
-            steps {
-                sh 'infracost breakdown --path ./terraform'
+	stage('Cost Estimation (Infracost)') {
+           steps {
+            // This block securely extracts the key and injects it directly into the command's memory
+            withCredentials([string(credentialsId: 'infracost-api-key', variable: 'INFRACOST_API_KEY')]) {
+                sh 'infracost breakdown --path ./terraform --format table'
+               }
             }
         }
 
